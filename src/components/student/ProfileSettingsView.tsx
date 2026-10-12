@@ -18,7 +18,10 @@ import {
   Image as ImageIcon,
   Camera,
   Upload,
-  RefreshCw
+  RefreshCw,
+  Trash2,
+  FileText,
+  X
 } from 'lucide-react';
 import { UserProfile, LanguageDirection } from '../../types';
 import { storageService } from '../../services/storageService';
@@ -116,6 +119,8 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [savedToast, setSavedToast] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   // Hidden File input ref for uploading user's personal photo
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -234,6 +239,32 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
             <Check className="w-4 h-4" />
             <span>Profil fotoğrafınız ve bilgileriniz başarıyla güncellendi!</span>
           </div>
+        </div>
+      )}
+
+      {/* Top Super Admin Control Hub Banner */}
+      {user.isSuperAdmin && (
+        <div 
+          onClick={onOpenAdmin}
+          className="bg-gradient-to-r from-amber-500 via-amber-400 to-orange-400 text-slate-950 p-4 rounded-3xl shadow-md cursor-pointer hover:brightness-105 transition flex items-center justify-between border border-amber-300"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-slate-950 text-amber-400 rounded-2xl shadow-inner font-black">
+              <ShieldCheck className="w-5 h-5 stroke-[2.3]" />
+            </div>
+            <div>
+              <h3 className="text-xs font-black tracking-tight text-slate-950">
+                BAŞ YÖNETİCİ KONTROL PANELİ
+              </h3>
+              <p className="text-[11px] font-bold text-amber-950/90">
+                Müfredat, dersler, sözlük ve veritabanını düzenleyin
+              </p>
+            </div>
+          </div>
+          <span className="px-3.5 py-1.5 bg-slate-950 text-white rounded-xl text-xs font-black shadow-sm flex items-center gap-1">
+            <span>Yönet</span>
+            <span>→</span>
+          </span>
         </div>
       )}
 
@@ -751,7 +782,102 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({
             </span>
           </div>
         )}
+
+        {/* Delete Account (Apple App Store Guideline 5.1.1(v) Compliant) */}
+        {!user.isGuest && !user.isSuperAdmin && (
+          <div 
+            onClick={() => {
+              if (confirm('Hesabınızı ve tüm ilerleme kayıtlarınızı kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.')) {
+                storageService.deleteAccount(user.id);
+                onLogout();
+              }
+            }}
+            className="p-3.5 flex items-center justify-between hover:bg-rose-50 cursor-pointer transition text-rose-500"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-rose-50 text-rose-500 rounded-xl">
+                <Trash2 className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-xs font-bold block">Hesabımı ve Verilerimi Sil</span>
+                <span className="text-[10px] text-rose-400">
+                  Kişisel verileri cihazdan kalıcı olarak kaldır
+                </span>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-rose-500">Sil</span>
+          </div>
+        )}
       </div>
+
+      {/* Store Compliance Legal Footer */}
+      <div className="pt-2 pb-6 text-center text-[10px] text-slate-400 flex items-center justify-center gap-3">
+        <button onClick={() => setShowPrivacyModal(true)} className="hover:text-slate-600 underline">
+          Gizlilik Politikası
+        </button>
+        <span>•</span>
+        <button onClick={() => setShowTermsModal(true)} className="hover:text-slate-600 underline">
+          Kullanım Koşulları
+        </button>
+        <span>•</span>
+        <span>Uzaktan Türkolog v1.0 Pro</span>
+      </div>
+
+      {/* Privacy Policy Modal */}
+      {showPrivacyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 space-y-4 max-h-[85vh] overflow-y-auto text-xs text-slate-700">
+            <div className="flex items-center justify-between border-b pb-2">
+              <h3 className="text-sm font-black text-slate-900">Gizlilik Politikası (Privacy Policy)</h3>
+              <button onClick={() => setShowPrivacyModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-2 leading-relaxed">
+              <p className="font-bold text-slate-900">1. Veri Sorumlusu ve Kapsam</p>
+              <p>Uzaktan Türkolog ("Uygulama"), kullanıcı gizliliğine azami riayet eder. Uygulama yalnızca eğitim ilerlemenizi (tamamlanan dersler, XP puanları, kelime ustalıkları) cihazınızda yerel olarak saklar.</p>
+              <p className="font-bold text-slate-900">2. Toplanan Bilgiler</p>
+              <p>Kayıt sırasında girilen e-posta adresi, ad ve seçilen kullanıcı lakabı yalnızca profilinizi kişiselleştirmek ve liderlik tablosunda göstermek amacıyla kullanılır. Üçüncü taraflara satılmaz veya paylaşılmaz.</p>
+              <p className="font-bold text-slate-900">3. Hesap ve Veri Silme</p>
+              <p>Apple App Store ve Google Play Store gereksinimleri uyarınca, kullanıcılar istedikleri zaman profil ayarlarından "Hesabımı ve Verilerimi Sil" seçeneğini kullanarak tüm verilerini anında silebilirler.</p>
+              <p className="font-bold text-slate-900">4. İletişim</p>
+              <p>Sorularınız için: dadasosman2525@gmail.com</p>
+            </div>
+            <div className="pt-2 text-right">
+              <button onClick={() => setShowPrivacyModal(false)} className="px-4 py-2 bg-violet-600 text-white font-bold rounded-xl text-xs">
+                Anladım
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Terms of Service Modal */}
+      {showTermsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 space-y-4 max-h-[85vh] overflow-y-auto text-xs text-slate-700">
+            <div className="flex items-center justify-between border-b pb-2">
+              <h3 className="text-sm font-black text-slate-900">Kullanım Koşulları (Terms of Service)</h3>
+              <button onClick={() => setShowTermsModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-2 leading-relaxed">
+              <p className="font-bold text-slate-900">1. Hizmetin Niteliği</p>
+              <p>Uzaktan Türkolog, Türkiye Türkçesi ve Kazak Türkçesi arasında karşılıklı dil eğitimi sunan akademik ve interaktif bir platformdur.</p>
+              <p className="font-bold text-slate-900">2. Kullanıcı Yükümlülükleri</p>
+              <p>Kullanıcılar forum ve topluluk alanlarında saygılı, yapıcı ve Türk Dünyası kardeşlik hukukuna uygun bir dil kullanmayı taahhüt eder. Zararlı veya yasa dışı içerik paylaşımı yasaktır.</p>
+              <p className="font-bold text-slate-900">3. Fikri Mülkiyet</p>
+              <p>Müfredat, seslendirmeler, telaffuz atlası ve alıştırmalar Uzaktan Türkolog ekibine aittir.</p>
+            </div>
+            <div className="pt-2 text-right">
+              <button onClick={() => setShowTermsModal(false)} className="px-4 py-2 bg-violet-600 text-white font-bold rounded-xl text-xs">
+                Kabul Ediyorum
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

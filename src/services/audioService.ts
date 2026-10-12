@@ -482,6 +482,13 @@ class AudioService {
   }
 
   /**
+   * Speak a vocabulary word
+   */
+  speakWord(word: string, lang: 'kk' | 'tr' = 'kk'): Promise<void> {
+    return this.speak(word, lang);
+  }
+
+  /**
    * Speak full text in Kazakh or Turkish
    */
   speak(text: string, lang: 'kk' | 'tr' = 'kk', rate: number = 0.86): Promise<void> {

@@ -142,79 +142,110 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ user }) => {
             </button>
           </div>
 
-          {/* TOP 3 PODIUM - Lingua Gamified Podium */}
-          <div className="grid grid-cols-3 gap-2 items-end pt-5 pb-2">
-            
-            {/* Rank 2 (Silver) */}
-            {topThree[1] && (
-              <div className="bg-white rounded-3xl p-3 border border-slate-200 shadow-sm flex flex-col items-center text-center relative">
-                <span className="absolute -top-3 px-2.5 py-0.5 bg-slate-200 text-slate-800 text-[10px] font-black rounded-full shadow-xs border border-white">
-                  🥈 2.
-                </span>
-                <img
-                  src={topThree[1].avatarUrl}
-                  alt={topThree[1].name}
-                  className="w-12 h-12 rounded-full object-cover border-2 border-slate-300 mt-2 mb-1 shadow-xs"
-                />
-                <h4 className="text-xs font-black text-slate-900 truncate w-full">
-                  {topThree[1].name.split(' ')[0]}
-                </h4>
-                <span className="text-[10px] font-extrabold text-violet-700">
-                  {topThree[1].xp} XP
-                </span>
-                <span className="text-[9px] text-slate-400 font-bold">
-                  {topThree[1].level}
-                </span>
-              </div>
-            )}
+          {/* TOP 3 PODIUM - Lingua Gamified Podium (Handles clean production user count) */}
+          {topThree.length > 1 ? (
+            <div className="grid grid-cols-3 gap-2 items-end pt-5 pb-2">
+              {/* Rank 2 (Silver) */}
+              {topThree[1] ? (
+                <div className="bg-white rounded-3xl p-3 border border-slate-200 shadow-sm flex flex-col items-center text-center relative">
+                  <span className="absolute -top-3 px-2.5 py-0.5 bg-slate-200 text-slate-800 text-[10px] font-black rounded-full shadow-xs border border-white">
+                    🥈 2.
+                  </span>
+                  <img
+                    src={topThree[1].avatarUrl}
+                    alt={topThree[1].name}
+                    className="w-12 h-12 rounded-full object-cover border-2 border-slate-300 mt-2 mb-1 shadow-xs"
+                  />
+                  <h4 className="text-xs font-black text-slate-900 truncate w-full">
+                    {topThree[1].name.split(' ')[0]}
+                  </h4>
+                  <span className="text-[10px] font-extrabold text-violet-700">
+                    {topThree[1].xp} XP
+                  </span>
+                  <span className="text-[9px] text-slate-400 font-bold">
+                    {topThree[1].level}
+                  </span>
+                </div>
+              ) : <div />}
 
-            {/* Rank 1 (Gold - Center higher with crown) */}
-            {topThree[0] && (
-              <div className="bg-gradient-to-b from-amber-50 to-white rounded-3xl p-3.5 border-2 border-amber-300 shadow-md flex flex-col items-center text-center relative -mt-4">
+              {/* Rank 1 (Gold - Center higher with crown) */}
+              {topThree[0] && (
+                <div className="bg-gradient-to-b from-amber-50 to-white rounded-3xl p-3.5 border-2 border-amber-300 shadow-md flex flex-col items-center text-center relative -mt-4">
+                  <span className="absolute -top-3.5 px-3 py-0.5 bg-amber-400 text-slate-950 text-xs font-black rounded-full shadow-xs flex items-center gap-0.5 border border-white">
+                    👑 1.
+                  </span>
+                  <img
+                    src={topThree[0].avatarUrl}
+                    alt={topThree[0].name}
+                    className="w-14 h-14 rounded-full object-cover border-3 border-amber-400 mt-2 mb-1 shadow-md"
+                  />
+                  <h4 className="text-xs font-black text-slate-900 truncate w-full">
+                    {topThree[0].name.split(' ')[0]}
+                  </h4>
+                  <span className="text-xs font-black text-amber-600">
+                    {topThree[0].xp} XP
+                  </span>
+                  <span className="text-[10px] text-violet-700 font-bold">
+                    {topThree[0].level}
+                  </span>
+                </div>
+              )}
+
+              {/* Rank 3 (Bronze) */}
+              {topThree[2] ? (
+                <div className="bg-white rounded-3xl p-3 border border-slate-200 shadow-sm flex flex-col items-center text-center relative">
+                  <span className="absolute -top-3 px-2.5 py-0.5 bg-amber-700/20 text-amber-900 text-[10px] font-black rounded-full shadow-xs border border-white">
+                    🥉 3.
+                  </span>
+                  <img
+                    src={topThree[2].avatarUrl}
+                    alt={topThree[2].name}
+                    className="w-12 h-12 rounded-full object-cover border-2 border-amber-600/40 mt-2 mb-1 shadow-xs"
+                  />
+                  <h4 className="text-xs font-black text-slate-900 truncate w-full">
+                    {topThree[2].name.split(' ')[0]}
+                  </h4>
+                  <span className="text-[10px] font-extrabold text-violet-700">
+                    {topThree[2].xp} XP
+                  </span>
+                  <span className="text-[9px] text-slate-400 font-bold">
+                    {topThree[2].level}
+                  </span>
+                </div>
+              ) : <div />}
+            </div>
+          ) : topThree.length === 1 ? (
+            <div className="flex justify-center pt-5 pb-2">
+              <div className="bg-gradient-to-b from-amber-50 to-white rounded-3xl p-4 border-2 border-amber-300 shadow-md flex flex-col items-center text-center relative max-w-xs w-full">
                 <span className="absolute -top-3.5 px-3 py-0.5 bg-amber-400 text-slate-950 text-xs font-black rounded-full shadow-xs flex items-center gap-0.5 border border-white">
-                  👑 1.
+                  👑 1. LİDER
                 </span>
                 <img
                   src={topThree[0].avatarUrl}
                   alt={topThree[0].name}
-                  className="w-14 h-14 rounded-full object-cover border-3 border-amber-400 mt-2 mb-1 shadow-md"
+                  className="w-16 h-16 rounded-full object-cover border-3 border-amber-400 mt-2 mb-1 shadow-md"
                 />
-                <h4 className="text-xs font-black text-slate-900 truncate w-full">
-                  {topThree[0].name.split(' ')[0]}
+                <h4 className="text-sm font-black text-slate-900 truncate w-full">
+                  {topThree[0].name}
                 </h4>
                 <span className="text-xs font-black text-amber-600">
                   {topThree[0].xp} XP
                 </span>
                 <span className="text-[10px] text-violet-700 font-bold">
-                  {topThree[0].level}
+                  {topThree[0].level} Seviye
                 </span>
+                <p className="text-[11px] text-slate-500 mt-2 font-medium">
+                  Lig liderisiniz! Diğer öğrenciler katıldıkça kürsü dolacaktır.
+                </p>
               </div>
-            )}
-
-            {/* Rank 3 (Bronze) */}
-            {topThree[2] && (
-              <div className="bg-white rounded-3xl p-3 border border-slate-200 shadow-sm flex flex-col items-center text-center relative">
-                <span className="absolute -top-3 px-2.5 py-0.5 bg-amber-700/20 text-amber-900 text-[10px] font-black rounded-full shadow-xs border border-white">
-                  🥉 3.
-                </span>
-                <img
-                  src={topThree[2].avatarUrl}
-                  alt={topThree[2].name}
-                  className="w-12 h-12 rounded-full object-cover border-2 border-amber-600/40 mt-2 mb-1 shadow-xs"
-                />
-                <h4 className="text-xs font-black text-slate-900 truncate w-full">
-                  {topThree[2].name.split(' ')[0]}
-                </h4>
-                <span className="text-[10px] font-extrabold text-violet-700">
-                  {topThree[2].xp} XP
-                </span>
-                <span className="text-[9px] text-slate-400 font-bold">
-                  {topThree[2].level}
-                </span>
-              </div>
-            )}
-
-          </div>
+            </div>
+          ) : (
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 text-center space-y-2">
+              <Trophy className="w-8 h-8 text-violet-400 mx-auto" />
+              <h4 className="text-xs font-black text-slate-800">Yeni Lig Sezonu Başladı</h4>
+              <p className="text-[11px] text-slate-500">Dersleri tamamlayıp XP kazandıkça sıralamada ilk sıraya yerleşeceksiniz.</p>
+            </div>
+          )}
 
           {/* Current User Live Standing Banner (Always shows user's actual photo!) */}
           {currentUserEntry && (

@@ -22,22 +22,26 @@ import {
   ForumCategory
 } from '../types';
 import { initialUnits, initialBadges } from '../data/initialCurriculum';
+import { SecurityService } from './securityService';
 
 const STORAGE_KEYS = {
-  UNITS: 'uzaktan_turkolog_units_v3',
+  UNITS: 'uzaktan_turkolog_units_v4',
   CURRENT_USER: 'uzaktan_turkolog_user_v1',
   USERS_LIST: 'uzaktan_turkolog_users_list_v1',
-  ERROR_TICKETS: 'uzaktan_turkolog_error_tickets_v1',
+  ERROR_TICKETS: 'uzaktan_turkolog_error_tickets_clean_v1',
   AUDIT_LOGS: 'uzaktan_turkolog_audit_logs_v1',
   APP_CONFIG: 'uzaktan_turkolog_app_config_v1',
   FORUM_POSTS: 'uzaktan_turkolog_forum_posts_clean_v1',
   ADMIN_SESSION_VERIFIED: 'uzaktan_turkolog_admin_session_v1',
-  ERROR_TICKETS: 'uzaktan_turkolog_error_tickets_clean_v1',
+  ADMIN_PASSWORD_HASH: 'uzaktan_turkolog_admin_hash_v1',
 };
 
 // Default Super Admin User Profile for the application owner
 export const SUPER_ADMIN_EMAIL = 'dadasosman2525@gmail.com';
-export const DEFAULT_ADMIN_PASSWORD = 'admin2525';
+
+// Cryptographically hashed master digest for initial administrator authorization (SHA-256)
+// NO plaintext password is ever stored or exposed in the source code!
+const INITIAL_ADMIN_HASH = 'ef4c6e47783ed719aed3586dbfc6dcfb97c5763a888d638aea6ac2c0eb930440';
 
 // Default Guest / Standard Learner profile for visitors who have not logged in yet
 export const defaultGuestProfile: UserProfile = {
@@ -359,19 +363,48 @@ class StorageService {
 
   /**
    * Super Admin Login - verifies admin authorization before granting permissions
+   * Enterprise security: Cryptographic SHA-256 Digest Verification, Anti-Brute-Force Rate Limiting & Session Tokens
    */
   loginAsSuperAdmin(password?: string): { success: boolean; user: UserProfile; error?: string } {
-    const validPassword = localStorage.getItem('uzaktan_turkolog_admin_pwd') || DEFAULT_ADMIN_PASSWORD;
-    if (password !== undefined && password.trim() !== '') {
-      const cleanPass = password.trim();
-      if (cleanPass !== validPassword && cleanPass !== '2525' && cleanPass !== 'osman2525' && cleanPass !== 'admin') {
-        return {
-          success: false,
-          user: this.getCurrentUser(),
-          error: 'Hatalı yönetici şifresi! Lütfen Osman Dadaş yönetici şifresini giriniz.'
-        };
-      }
+    // 1. Check Anti-Brute-Force Rate Limiter (max 5 attempts, 3 min lockout)
+    const rateLimit = SecurityService.checkRateLimit('admin_auth', 5, 180000);
+    if (!rateLimit.allowed) {
+      this.logAudit(SUPER_ADMIN_EMAIL, 'SECURITY_LOCKOUT', 'Güvenlik', `Yönetici girişi geçici olarak kilitlendi. Kalan süre: ${rateLimit.retryAfterSeconds} sn.`);
+      return {
+        success: false,
+        user: this.getCurrentUser(),
+        error: `Güvenlik Koruması: Çok fazla hatalı deneme yapıldı! Lütfen ${rateLimit.retryAfterSeconds} saniye sonra tekrar deneyiniz.`
+      };
     }
+
+    if (!password || password.trim() === '') {
+      return {
+        success: false,
+        user: this.getCurrentUser(),
+        error: 'Lütfen yönetici şifrenizi giriniz.'
+      };
+    }
+
+    const cleanPass = password.trim();
+    // One-way SHA-256 cryptographic hashing (no plaintext stored or compared)
+    const inputHash = SecurityService.sha256(cleanPass);
+    const storedHash = localStorage.getItem(STORAGE_KEYS.ADMIN_PASSWORD_HASH) || INITIAL_ADMIN_HASH;
+
+    if (inputHash !== storedHash) {
+      SecurityService.recordFailedAttempt('admin_auth');
+      this.logAudit(SUPER_ADMIN_EMAIL, 'AUTH_FAILED', 'Güvenlik', 'Hatalı yönetici şifresi denemesi engellendi.');
+      return {
+        success: false,
+        user: this.getCurrentUser(),
+        error: `Hatalı yönetici şifresi! Kalan deneme hakkı: ${Math.max(0, rateLimit.remainingAttempts - 1)}.`
+      };
+    }
+
+    // Reset rate limit on valid authentication
+    SecurityService.resetRateLimit('admin_auth');
+
+    // Create cryptographically signed token
+    SecurityService.createAdminSessionToken(SUPER_ADMIN_EMAIL);
 
     // Set verified admin session
     localStorage.setItem(STORAGE_KEYS.ADMIN_SESSION_VERIFIED, 'true');
@@ -393,10 +426,34 @@ class StorageService {
   }
 
   /**
+   * Securely update Super Admin password using SHA-256 hashing
+   */
+  changeAdminPassword(newPassword: string): { success: boolean; error?: string } {
+    const val = SecurityService.validatePassword(newPassword);
+    if (!val.isValid) {
+      return { success: false, error: val.message || 'Geçersiz şifre formatı.' };
+    }
+
+    const hashed = SecurityService.sha256(newPassword.trim());
+    localStorage.setItem(STORAGE_KEYS.ADMIN_PASSWORD_HASH, hashed);
+    // Remove any legacy plaintext key
+    localStorage.removeItem('uzaktan_turkolog_admin_pwd');
+
+    this.logAudit(
+      SUPER_ADMIN_EMAIL,
+      'PASSWORD_UPDATE',
+      'Güvenlik',
+      'Baş yönetici şifresi SHA-256 şifrelemesi ile başarıyla güncellendi.'
+    );
+    return { success: true };
+  }
+
+  /**
    * Logout user, clear admin session verification and revert to guest learner
    */
   logout(): UserProfile {
     localStorage.removeItem(STORAGE_KEYS.ADMIN_SESSION_VERIFIED);
+    SecurityService.clearAdminSession();
     const guestUser: UserProfile = {
       ...defaultGuestProfile,
       id: 'usr-guest-' + Date.now(),
@@ -866,6 +923,103 @@ class StorageService {
     this.saveUnits(units);
     this.logAudit(this.getCurrentUser().email, 'ADD_EXERCISE', 'Alıştırmalar', `Yeni alıştırma eklendi: ${newEx.questionTr}`);
     return newEx;
+  }
+
+  /**
+   * Delete word completely from all lessons
+   */
+  deleteWordEverywhere(vocabId: string): boolean {
+    const units = this.getUnits();
+    let deletedCount = 0;
+    units.forEach(u => {
+      u.lessons.forEach(l => {
+        const initialLen = l.vocabulary.length;
+        l.vocabulary = l.vocabulary.filter(v => v.id !== vocabId);
+        if (l.vocabulary.length < initialLen) deletedCount++;
+      });
+    });
+    this.saveUnits(units);
+    this.logAudit(this.getCurrentUser().email, 'DELETE_VOCAB', 'Sözlük', `Kelime ${vocabId} silindi (${deletedCount} dersten kaldırıldı).`);
+    return deletedCount > 0;
+  }
+
+  /**
+   * USER & ACCESS MANAGEMENT (Super Admin only)
+   */
+  updateUserRole(userId: string, role: 'user' | 'admin' | 'super_admin'): boolean {
+    const users = this.getRegisteredUsers();
+    const user = users.find(u => u.id === userId);
+    if (!user) return false;
+    user.role = role;
+    if (role === 'super_admin') {
+      user.isSuperAdmin = true;
+    } else {
+      user.isSuperAdmin = false;
+    }
+    this.saveRegisteredUsers(users);
+    this.logAudit(this.getCurrentUser().email, 'UPDATE_USER_ROLE', 'Kullanıcılar', `${user.name} (${user.email}) rolü "${role}" olarak güncellendi.`);
+    return true;
+  }
+
+  deleteUser(userId: string): boolean {
+    let users = this.getRegisteredUsers();
+    const target = users.find(u => u.id === userId);
+    if (!target) return false;
+    if (target.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+      throw new Error('Baş Yönetici hesabı silinemez!');
+    }
+    users = users.filter(u => u.id !== userId);
+    this.saveRegisteredUsers(users);
+    this.logAudit(this.getCurrentUser().email, 'DELETE_USER', 'Kullanıcılar', `Kullanıcı silindi: ${target.name} (${target.email})`);
+    return true;
+  }
+
+  /**
+   * Apple App Store Guideline 5.1.1(v) Compliant Account Deletion
+   * Deletes user's account and personal data from device upon user request
+   */
+  deleteAccount(userId: string): UserProfile {
+    let users = this.getRegisteredUsers();
+    const target = users.find(u => u.id === userId);
+    if (target && target.email.toLowerCase() !== SUPER_ADMIN_EMAIL.toLowerCase()) {
+      users = users.filter(u => u.id !== userId);
+      this.saveRegisteredUsers(users);
+      this.logAudit(target.email, 'ACCOUNT_DELETED', 'Hesap', `${target.name} hesabını ve verilerini kalıcı olarak sildi.`);
+    }
+    return this.logout();
+  }
+
+  /**
+   * Import Database from JSON Backup
+   */
+  importDatabaseJson(jsonData: any): { success: boolean; message: string } {
+    try {
+      if (!jsonData || typeof jsonData !== 'object') {
+        return { success: false, message: 'Geçersiz JSON dosyası formatı!' };
+      }
+      if (Array.isArray(jsonData.units) && jsonData.units.length > 0) {
+        this.saveUnits(jsonData.units);
+      }
+      if (Array.isArray(jsonData.tickets)) {
+        this.saveErrorTickets(jsonData.tickets);
+      }
+      if (jsonData.appConfig) {
+        this.saveAppConfig(jsonData.appConfig);
+      }
+      this.logAudit(this.getCurrentUser().email, 'RESTORE_DATABASE', 'Veritabanı', 'JSON yedeği başarıyla geri yüklendi.');
+      return { success: true, message: 'Veritabanı yedeği başarıyla geri yüklendi ve müfredat güncellendi!' };
+    } catch (err: any) {
+      return { success: false, message: 'Yedek yükleme başarısız oldu: ' + (err?.message || 'Bilinmeyen hata') };
+    }
+  }
+
+  /**
+   * Reset curriculum to factory default (17 units, 34 lessons)
+   */
+  resetCurriculumToInitial(): Unit[] {
+    this.saveUnits(initialUnits);
+    this.logAudit(this.getCurrentUser().email, 'RESET_CURRICULUM', 'Müfredat', 'Tüm müfredat fabrika çıkışı 17 üniteye sıfırlandı.');
+    return initialUnits;
   }
 
   /**

@@ -44,6 +44,9 @@ export default function App() {
   const [user, setUser] = useState<UserProfile>(() => storageService.getCurrentUser());
   const [units, setUnits] = useState<Unit[]>(() => storageService.getUnits());
 
+  // Enforcement: Misafir kullanımı kapalıdır, üyelik zorunludur (Requirement 1)
+  const isGuestUser = Boolean(!user || user.isGuest);
+
   // View States: Mobile Simulator, Wide Web View, or Executive Super Admin Panel
   const [viewMode, setViewMode] = useState<'mobile' | 'web' | 'admin'>('mobile');
   const [studentTab, setStudentTab] = useState<MainStudentTab>('home');
@@ -100,6 +103,7 @@ export default function App() {
     const res = storageService.loginAsSuperAdmin(password);
     if (res.success && res.user) {
       setUser({ ...res.user });
+      setIsAuthModalOpen(false);
       audioService.playFeedbackSound('complete');
       return { success: true };
     }
@@ -107,14 +111,20 @@ export default function App() {
     return { success: false, error: res.error || 'Hatalı yönetici şifresi!' };
   };
 
-  // Handle Login with Target Language Selection
-  const handleLogin = (email: string, direction: LanguageDirection, password?: string) => {
-    const res = storageService.loginWithEmail(email, direction, password);
+  // Handle Login with Target Language Selection & Level
+  const handleLogin = (
+    email: string, 
+    direction: LanguageDirection, 
+    level: CefrLevel, 
+    password?: string
+  ) => {
+    const res = storageService.loginWithEmail(email, direction, level, password);
     if (!res.success) {
       audioService.playFeedbackSound('wrong');
       return { success: false, error: res.error || 'Giriş başarısız oldu.' };
     }
     setUser({ ...res.user });
+    setIsAuthModalOpen(false);
     audioService.playFeedbackSound('correct');
     return { success: true };
   };
@@ -130,16 +140,19 @@ export default function App() {
   ) => {
     const registeredUser = storageService.registerWithEmail(email, name, direction, level, nickname, password);
     setUser({ ...registeredUser });
+    setIsAuthModalOpen(false);
     audioService.playFeedbackSound('complete');
   };
 
-  // Handle Logout (clears admin verification and drops back to clean guest student)
+  // Handle Logout (clears session and returns to mandatory registration/login screen)
   const handleLogout = () => {
     const guestUser = storageService.logout();
     setUser({ ...guestUser });
     setActiveLessonPair(null);
     setStudentTab('home');
     setViewMode('mobile');
+    setAuthModalTab('login');
+    setIsAuthModalOpen(true);
     audioService.playFeedbackSound('click');
   };
 
@@ -361,9 +374,14 @@ export default function App() {
 
       {/* Auth Modal (Giriş Yap / E-posta ile Kayıt Ol / Yönetici Girişi) */}
       <AuthModal
-        isOpen={isAuthModalOpen}
+        isOpen={isAuthModalOpen || isGuestUser}
+        isMandatory={isGuestUser}
         initialTab={authModalTab}
-        onClose={() => setIsAuthModalOpen(false)}
+        onClose={() => {
+          if (!isGuestUser) {
+            setIsAuthModalOpen(false);
+          }
+        }}
         onLogin={handleLogin}
         onRegister={handleRegister}
         onAdminLogin={handleAdminLogin}

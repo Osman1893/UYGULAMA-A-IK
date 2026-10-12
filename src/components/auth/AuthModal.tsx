@@ -172,8 +172,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <UserPlus className="w-3.5 h-3.5" />
               <span>Kayıt Ol</span>
             </button>
-            {/* ADMIN TAB: STRICTLY VISIBLE ONLY TO OSMAN DADAŞ (Requirement 4) */}
-            {email.toLowerCase().trim() === SUPER_ADMIN_EMAIL.toLowerCase() && (
+            {/* ADMIN TAB: VISIBLE WHEN ADMIN SELECTED OR FOR SUPER ADMIN EMAIL */}
+            {(tab === 'admin' || email.toLowerCase().trim() === SUPER_ADMIN_EMAIL.toLowerCase() || initialTab === 'admin') && (
               <button
                 type="button"
                 onClick={() => { setTab('admin'); setErrorMessage(null); }}
@@ -236,8 +236,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-500 mt-1">
-                  Varsayılan yönetici parolası: <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700 font-bold">admin2525</code>
+                <p className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3 text-amber-600 inline" />
+                  <span>Sistem baş yöneticisi güvenlik doğrulaması (SHA-256 şifreli koruma)</span>
                 </p>
               </div>
 
@@ -248,6 +249,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <ShieldCheck className="w-4 h-4" />
                 <span>YÖNETİCİ OLARAK GİRİŞ YAP</span>
               </button>
+
+              <div className="text-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => setTab('login')}
+                  className="text-[11px] text-slate-500 hover:text-slate-700 font-semibold transition"
+                >
+                  ← Normal Öğrenci Girişine Dön
+                </button>
+              </div>
             </form>
           )}
 
@@ -315,45 +326,56 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               </div>
 
-              {/* Target Level Picker (if registering) */}
-              {tab === 'register' && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-700">
-                      Başlangıç Seviyeniz (A1 - C1):
-                    </label>
-                    {onOpenPlacementModal && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onOpenPlacementModal((lvl) => setSelectedLevel(lvl));
-                        }}
-                        className="text-[10px] font-bold text-teal-700 hover:text-teal-900 flex items-center gap-1 bg-teal-50 px-2 py-0.5 rounded-lg border border-teal-200"
-                      >
-                        <Sparkles className="w-3 h-3 text-teal-600" />
-                        <span>Seviye Tespit Sınavı</span>
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
-                    {(['A1', 'A2', 'B1', 'B2', 'C1'] as CefrLevel[]).map(lvl => (
-                      <button
-                        key={lvl}
-                        type="button"
-                        onClick={() => setSelectedLevel(lvl)}
-                        className={`flex-1 py-1 rounded-lg text-xs font-bold transition ${
-                          selectedLevel === lvl
-                            ? 'bg-teal-600 text-white shadow-xs'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        {lvl}
-                      </button>
-                    ))}
-                  </div>
+              {/* Target Level Picker - In both Login & Register (Requirement 2: Her üye girişte hedef dilini ve seviyesini seçsin, seçemiyorsa seviye testine tabii tut) */}
+              <div className="space-y-1.5 p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-teal-600" />
+                    <span>{tab === 'login' ? 'Mevcut / Hedef Seviyeniz:' : 'Başlangıç Seviyeniz:'}</span>
+                  </label>
+                  {onOpenPlacementModal && (
+                    <button
+                      type="button"
+                      onClick={handleLaunchPlacement}
+                      className="text-[10px] font-extrabold text-teal-800 hover:text-teal-950 flex items-center gap-1 bg-teal-100/90 px-2 py-0.5 rounded-lg border border-teal-300 transition"
+                      title="10 soruluk seviye tespit sınavını başlat"
+                    >
+                      <span>🎯 Seviyemi Bilmiyorum (Test Yap)</span>
+                    </button>
+                  )}
                 </div>
-              )}
+
+                {testedLevelBadge && (
+                  <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Seviye tespit sınavı tamamlandı! Belirlenen seviyeniz: <strong>{testedLevelBadge}</strong></span>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-1 bg-slate-200/70 p-1 rounded-xl border border-slate-200">
+                  {(['A1', 'A2', 'B1', 'B2', 'C1'] as CefrLevel[]).map(lvl => (
+                    <button
+                      key={lvl}
+                      type="button"
+                      onClick={() => setSelectedLevel(lvl)}
+                      className={`flex-1 py-1 rounded-lg text-xs font-bold transition ${
+                        selectedLevel === lvl
+                          ? 'bg-teal-600 text-white shadow-xs font-black'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {lvl}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-slate-500 italic">
+                  {selectedLevel === 'A1' && 'A1: Sıfırdan alfabe, tanışma ve temel kelimeler'}
+                  {selectedLevel === 'A2' && 'A2: Temel dil bilgisi, zaman ekleri ve günlük konuşma'}
+                  {selectedLevel === 'B1' && 'B1: Orta seviye, metin okuma ve birleşik fiiller'}
+                  {selectedLevel === 'B2' && 'B2: İleri orta, edebi metinler ve deyimler'}
+                  {selectedLevel === 'C1' && 'C1: Akademik Türkoloji ve uzmanlık'}
+                </p>
+              </div>
 
               {/* Register Specific Fields: Name & Nickname */}
               {tab === 'register' && (
@@ -481,13 +503,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {tab === 'login' ? 'KENDİ HESABIMLA GİRİŞ YAP' : 'ÜYELİĞİMİ OLUŞTUR VE BAŞLA'}
               </button>
 
-              <div className="text-center pt-1">
+              <div className="pt-2 text-center">
                 <button
                   type="button"
-                  onClick={() => { setTab('admin'); setErrorMessage(null); }}
-                  className="text-[11px] text-slate-400 hover:text-amber-700 font-semibold transition"
+                  onClick={() => {
+                    setTab('admin');
+                    setEmail(SUPER_ADMIN_EMAIL);
+                    setErrorMessage(null);
+                  }}
+                  className="text-[11px] font-bold text-amber-700 hover:text-amber-800 inline-flex items-center gap-1 transition"
                 >
-                  Yönetici (Admin) misiniz? Buradan giriş yapın →
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Sistem Sahibi / Yönetici (Admin) Girişi →</span>
                 </button>
               </div>
             </form>

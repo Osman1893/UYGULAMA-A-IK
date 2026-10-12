@@ -163,11 +163,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* If verified Super Admin */}
           {user.isSuperAdmin ? (
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setViewMode(viewMode === 'admin' ? 'mobile' : 'admin')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md shadow-amber-500/20 transition active:scale-95"
+                title="Yönetici Paneline Geç / Düzenle"
+              >
+                <ShieldCheck className="w-4 h-4 stroke-[2.3]" />
+                <span>{viewMode === 'admin' ? 'Öğrenci Modu' : 'Yönetici Paneli'}</span>
+              </button>
+
               <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs">
-                <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
-                <div>
-                  <span className="font-extrabold">Baş Admin:</span> {user.name.split(' ')[0]}
-                </div>
+                <span className="font-extrabold">{user.name.split(' ')[0]}</span>
               </div>
               <button
                 onClick={onLogout}
@@ -175,7 +181,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 title="Yönetici Oturumunu Kapat"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Admin Çıkışı</span>
+                <span className="hidden sm:inline">Çıkış</span>
               </button>
             </div>
           ) : isGuest ? (
